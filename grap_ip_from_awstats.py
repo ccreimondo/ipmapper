@@ -84,12 +84,14 @@ def merge(year, months):
     for m in months:
         str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
         pcoll = db[''.join(["ip", str_m, str(year)])]
-        for record in pcoll.find():
+        for record in pcoll.find(timeout=False):
             if record["handled"] == True: continue
             target = coll.find_one({"host": record["host"]})
             # Insert new record to coll
             if target is None:
                 coll.insert_one(record)
+                record["handled"] = True
+                pcoll.save(record)
                 continue
             # Update record in coll
             for key in ["pages", "hits", "bandwidth"]:
