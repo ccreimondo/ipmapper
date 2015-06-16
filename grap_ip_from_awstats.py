@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from pymongo import MongoClient
+import traceback
+from datetime import datetime
+from mail import send_email
 
 def getfilename(year, month, prefix):
     str_month = (''.join(['0', str(month)]) if (month < 10) else str(month))
@@ -74,26 +77,33 @@ def addipinfo(ipinfoa, ipinfob):
 def merge(year, months):
     db = MongoClient("localhost", 27017)["mirrors"]
     coll = db[''.join(["ip", '_'.join([str(months[0]), str(months[-1])])])]
-    for m in months:
-        str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
-        pcoll = db[''.join(["ip", str_m, str(year)])]
-        for record in pcoll.find():
-            target = coll.find_one({"host": record["host"]})
-            if target is None:
-                coll.insert_one(record)
-                continue
+    try:
+        for m in months:
+            str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
+            pcoll = db[''.join(["ip", str_m, str(year)])]
+            for record in pcoll.find():
+                target = coll.find_one({"host": record["host"]})
+                if target is None:
+                    coll.insert_one(record)
+                    continue
 
-            for key in ["pages", "hits", "bandwidth"]:
-                target[key] += record[key]
-            target["last_visit"] = max(target["last_visit"], record["last_visit"])
-            pcoll.save(target)
+                for key in ["pages", "hits", "bandwidth"]:
+                    target[key] += record[key]
+                target["last_visit"] = max(target["last_visit"], record["last_visit"])
+                pcoll.save(target)
+    except:
+        send_email("Merge IP Error", traceback.format_exc())
 
 
 def main():
     months = [1, 2, 3, 4, 5]
     #for m in months:
     #    grap(getfilename(2015, m, "awstats"))
-    merge(2015, [1, 2])
+    start_time = datetime.now()
+    merge(2015, months)
+    end_time = datetime.now()
+    msg = "Duration: {}".format(end_time - start_time)
+    send_email("Merge IP Down", msg)
 
 
 def test():
