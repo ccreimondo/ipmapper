@@ -25,7 +25,7 @@ def savetodb(ips, collection):
     # db = MongoClient("localhost", 27017)["mirrors"]
     db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
     coll = db[collection]
-    fields = ["host", "pages", "hits", "bandwidth", "last_visit"]
+    fields = ["host", "pages", "hits", "bandwidth", "last_visit", "handled"]
     for line in ips:
         if len(line) < 5:
             line.append('')
@@ -34,7 +34,8 @@ def savetodb(ips, collection):
             "pages": int(line[1]),
             "hits": int(line[2]),
             "bandwidth": int(line[3]),
-            "last_visit": line[4]
+            "last_visit": line[4],
+            "handled": False
         }
         coll.insert_one(obj)
 
@@ -80,34 +81,44 @@ def merge(year, months):
     # db = MongoClient("localhost", 27017)["mirrors"]
     db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
     coll = db[''.join(["ip", '_'.join([str(months[0]), str(months[-1])])])]
-    try:
-        for m in months:
-            str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
-            pcoll = db[''.join(["ip", str_m, str(year)])]
-            for record in pcoll.find():
-                target = coll.find_one({"host": record["host"]})
-                if target is None:
-                    coll.insert_one(record)
-                    continue
-
-                for key in ["pages", "hits", "bandwidth"]:
-                    target[key] += record[key]
-                target["last_visit"] = max(target["last_visit"], record["last_visit"])
-                pcoll.save(target)
-    except:
-        send_email("Merge IP Error", traceback.format_exc())
+    for m in months:
+        str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
+        pcoll = db[''.join(["ip", str_m, str(year)])]
+        for record in pcoll.find():
+            if record["handled"] == True: continue
+            target = coll.find_one({"host": record["host"]})
+            # Insert new record to coll
+            if target is None:
+                coll.insert_one(record)
+                continue
+            # Update record in coll
+            for key in ["pages", "hits", "bandwidth"]:
+                target[key] += record[key]
+            target["last_visit"] = max(target["last_visit"], record["last_visit"])
+            coll.save(target)
+            record["handled"] = True
+            pcoll.save(record)
 
 
 def main():
     months = [1, 2, 3, 4, 5]
-    #for m in months:
-    #    grap(getfilename(2015, m, "awstats"))
     start_time = datetime.now()
-    merge(2015, months)
-    end_time = datetime.now()
-    msg = "Duration: {}".format(end_time - start_time)
-    send_email("Merge IP Down", msg)
-
+    try:
+        # Start grap
+        for m in months:
+            grap(getfilename(2015, m, "awstats"))
+        grap_end_time = datetime.now()
+        grap_msg = "Grap duration: {}".format(grap_end_time - start_time)
+        send_email("Grap IP donw", grap_msg)
+        # Start merge
+        merge(2015, months)
+        end_time = datetime.now()
+        merge_msg = "Merge duration: {}".format(end_time - grap_end_time)
+        merge_msg += "\nDuration: {}".format(end_time - start_time)
+        send_email("IP handle down", merge_msg)
+    except:
+        errmsg = '\n'.join([traceback.format_exc(), "Duration: {}".format(datetime.now() - start_time)])
+        send_email("IP handle error", errmsg)
 
 def test():
     import StringIO
