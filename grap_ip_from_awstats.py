@@ -4,6 +4,7 @@ from pymongo import MongoClient
 import traceback
 from datetime import datetime
 from mail import send_email
+from secret import server
 
 def getfilename(year, month, prefix):
     str_month = (''.join(['0', str(month)]) if (month < 10) else str(month))
@@ -21,7 +22,8 @@ def savetofile(ips, filename):
 
 
 def savetodb(ips, collection):
-    db = MongoClient("localhost", 27017)["mirrors"]
+    # db = MongoClient("localhost", 27017)["mirrors"]
+    db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
     coll = db[collection]
     fields = ["host", "pages", "hits", "bandwidth", "last_visit"]
     for line in ips:
@@ -75,7 +77,8 @@ def addipinfo(ipinfoa, ipinfob):
 
 
 def merge(year, months):
-    db = MongoClient("localhost", 27017)["mirrors"]
+    # db = MongoClient("localhost", 27017)["mirrors"]
+    db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
     coll = db[''.join(["ip", '_'.join([str(months[0]), str(months[-1])])])]
     try:
         for m in months:
