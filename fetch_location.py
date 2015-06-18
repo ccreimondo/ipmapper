@@ -23,7 +23,7 @@ def fast():
 def fetch():
     qurl = "http://freeapi.ipip.net"
     db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
-    cursor = db["ip1_5_s"].find().sort("bandwidth", DESCENDING).limit
+    cursor = db["ip1_5_s"].find().sort("bandwidth", DESCENDING)
     for e in cursor:
         if "location" in e.keys(): continue
         re = requests.get('/'.join([qurl, e["host"]]))
@@ -33,7 +33,7 @@ def fetch():
         db["ip1_5_s"].save(e)
 
 
-def static():
+def figure():
     db = MongoClient(server.MONGODB_DEV_URI)["mirrors"]
     # db = MongoClient("localhost", 27017)["mirrors"]
     cursor = db["ip1_5_s"].find()
@@ -63,7 +63,7 @@ def static():
 def main():
     # fast()
     # fetch()
-    # static()
+    # figure()
 
 
 if __name__ == "__main__":
