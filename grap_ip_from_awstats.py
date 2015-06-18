@@ -40,7 +40,7 @@ def savetodb(ips, collection):
         coll.insert_one(obj)
 
 
-def grap(filename):
+def grab(filename):
     ips = []
     with open(filename, 'r') as infile:
         flag = False
@@ -84,7 +84,7 @@ def merge(year, months):
     for m in months:
         str_m = (''.join(['0', str(m)]) if m < 10 else str(m))
         pcoll = db[''.join(["ip", str_m, str(year)])]
-        for record in pcoll.find(timeout=False):
+        for record in pcoll.find(no_cursor_timeout=True):
             if record["handled"] == True: continue
             target = coll.find_one({"host": record["host"]})
             # Insert new record to coll
@@ -106,21 +106,22 @@ def main():
     months = [1, 2, 3, 4, 5]
     start_time = datetime.now()
     try:
-        # Start grap
+        # Start grab
         for m in months:
-            grap(getfilename(2015, m, "awstats"))
-        grap_end_time = datetime.now()
-        grap_msg = "Grap duration: {}".format(grap_end_time - start_time)
-        send_email("Grap IP donw", grap_msg)
+            grab(getfilename(2015, m, "awstats"))
+        grab_end_time = datetime.now()
+        grab_msg = "Grab duration: {}".format(grab_end_time - start_time)
+        send_email("Grab IP down", grab_msg)
         # Start merge
         merge(2015, months)
         end_time = datetime.now()
-        merge_msg = "Merge duration: {}".format(end_time - grap_end_time)
+        merge_msg = "Merge duration: {}".format(end_time - grab_end_time)
         merge_msg += "\nDuration: {}".format(end_time - start_time)
         send_email("IP handle down", merge_msg)
     except:
         errmsg = '\n'.join([traceback.format_exc(), "Duration: {}".format(datetime.now() - start_time)])
         send_email("IP handle error", errmsg)
+
 
 def test():
     import StringIO
